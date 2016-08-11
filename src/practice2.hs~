@@ -42,7 +42,10 @@ foldl' :: (a -> b -> a) -> a -> [b] -> a
 foldl' f v []     = v
 foldl' f v (x:xs) = foldl' f (f v x) xs
 
-(.') :: (b -> c) -> (a -> b) -> (a -> c)
-f .' g = (\x -> f (g x))
+-- (.') :: (b -> c) -> (a -> b) -> (a -> c)
+-- f .' g = (\x -> f (g x))
 
-sumsqreven ns = sum .' map (^2) .' filter even
+sumsqreven ns = sum . map (^2) . filter even
+
+--twice :: (a -> b) -> a -> b
+twice f = f . f

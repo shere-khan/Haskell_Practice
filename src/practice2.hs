@@ -46,3 +46,6 @@ foldl' f v (x:xs) = foldl' f (f v x) xs
 -- f .' g = (\x -> f (g x))
 
 sumsqreven ns = sum . map (^2) . filter even
+
+twice :: (b -> b) -> b -> b
+twice f = f . f
