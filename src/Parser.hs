@@ -18,7 +18,3 @@ parse' p inp = p inp
 p >>>= f = \inp -> case parse' p inp of
                       [] -> []
                       [(v, out)] -> parse' (f v) out
-
-item' >>>= \x ->
-item' >>>= \y ->
-return' (x, y)
