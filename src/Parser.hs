@@ -18,3 +18,14 @@ parse' p inp = p inp
 p >>>= f = \inp -> case parse' p inp of
                       [] -> []
                       [(v, out)] -> parse' (f v) out
+
+(+++) :: Parser a -> Parser a -> Parser a
+p +++ q = \inp -> case p inp of
+                    []         -> parse' q inp
+                    [(v, out)] -> [(v, out)]
+
+p :: Parser (Char, Char)
+p = do x <- item'
+       item'
+       y <- item'
+       return' (x, y)
