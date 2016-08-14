@@ -1,0 +1,6 @@
+target
+bin
+*~
+*.swp
+src/*.swp
+src/*.~
