@@ -40,9 +40,6 @@ drawTileAt :: Orientation -> Picture
 drawTileAt (O d (C r c)) =
   translated (fromIntegral r) (fromIntegral c) (drawTile (maze (O d (C r c))))
 
-initialCoord :: Orientation
-initialCoord = O R (C 0 1)
-
 atCoord :: Coord -> Picture -> Picture
 atCoord (C x y) pic = translated (fromIntegral x) (fromIntegral y) pic
 
@@ -92,6 +89,9 @@ maze (O d (C x y))
   | x ==  3 && y <= 0        = Storage
   | x >= -2 && y == 0        = Box
   | otherwise                 = Ground
+
+initialCoord :: Orientation
+initialCoord = O R (C 0 1)
 
 exercise1 :: IO()
 exercise1 = interactionOf initialCoord handleTime handleEvent drawState
