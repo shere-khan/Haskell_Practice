@@ -2,9 +2,8 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-deprecations #-}
 import CodeWorld
 
--- Lists
-
-data List a = Empty | Entry a (List a)
+------------------------------------ LISTS ----------------------------------
+data List a = Empty | Entry a (List a) deriving (Show)
     
 mapList :: (a -> b) -> List a -> List b
 mapList _ Empty = Empty
@@ -14,10 +13,8 @@ combine :: List Picture -> Picture
 combine Empty = blank
 combine (Entry p ps) = p & combine ps
 
--- Coordinates
-
-
-data Coord = C Integer Integer
+------------------------------------ COORDINATES ----------------------------------
+data Coord = C Integer Integer deriving (Show)
 
 data Direction = R | U | L | D
 
@@ -34,7 +31,6 @@ moveFromTo :: Coord -> Coord -> Coord -> Coord
 moveFromTo = undefined
 
 ------------------------------------ THE MAZE ----------------------------------
-
 data Tile = Wall | Ground | Storage | Box | Blank
 
 noBoxMaze :: Coord -> Tile
@@ -66,38 +62,30 @@ mazeWithBoxes l (C x y) = case containsCoord l (C x y) of
 
 data State = State Coord Direction (List Coord)
 
--- Get coordinates of boxes
-drawCol :: Integer -> Integer -> List Coord
-drawCol _ 10 = Empty
-drawCol 10 _ = Empty
-drawCol x y = case maze (C x y) of
-                Box -> (Entry (C x y) next)
-                t   -> next 
-  where next = drawCol x (y+1)
+------------------------ GET COORDINATES OF BOXES -----------------------------
+recurseCol :: Integer -> Integer -> List Coord
+recurseCol _ 10 = Empty
+recurseCol 10 _ = Empty
+recurseCol x y = case maze (C x y) of
+                   Box -> (Entry (C x y) next)
+                   t   -> next 
+  where next = recurseCol x (y+1)
 
-drawRow :: Integer -> Integer -> List Coord
-drawRow _ 10 = Empty
-drawRow 10 _ = Empty
-drawRow x y  = appendList (drawCol x y) (drawRow (x + 1) y)
+recurseRow :: Integer -> Integer -> List Coord
+recurseRow _ 10 = Empty
+recurseRow 10 _ = Empty
+recurseRow x y  = appendList (recurseCol x y) (recurseRow (x + 1) y)
 
 appendList :: List Coord -> List Coord -> List Coord
 appendList k Empty = k
 appendList Empty k = k
 appendList (Entry a k) (Entry b l) = (Entry a (Entry b (appendList k l)))
 
-initialBoxes :: List Coord
-initialBoxes = drawRow (-10) (-10)
-
-initialState :: State
-initialState = State (C 0 1) R (Entry (C 3 3) Empty)
-
 ---------------------------------- EVENT HANDLING ----------------------------------
-
 handleEvent :: Event -> State -> State
 handleEvent _ s = s -- FIXME!
 
 ------------------------------------ DRAWING ----------------------------------
-
 wall, ground, storage, box :: Picture
 wall =    colored (grey 0.4) (solidRectangle 1 1)
 ground =  colored yellow     (solidRectangle 1 1)
@@ -122,12 +110,14 @@ draw21times something = go (-10)
     go n  = something n & go (n+1)
 
 drawTileAt :: Coord -> Picture
-drawTileAt c = atCoord c (drawTile (mazeWithBoxes initialBoxes c))
+drawTileAt c = atCoord c (drawTile (noBoxMaze c))
+
+drawTileAt2 :: Coord -> Picture
+drawTileAt2 c = atCoord c (drawTile (mazeWithBoxes initialBoxes c))
 
 
 atCoord :: Coord -> Picture -> Picture
 atCoord (C x y) pic = translated (fromIntegral x) (fromIntegral y) pic
-
 
 player :: Direction -> Picture
 player R = translated 0 0.3 cranium
@@ -156,32 +146,34 @@ player D = translated 0 0.3 cranium
                 & translated   0.06  0.08 (solidCircle 0.04)
                 & translated (-0.06) 0.08 (solidCircle 0.04)
 
+initialBoxes :: List Coord
+initialBoxes = recurseRow (-10) (-10)
+
+initialState :: State
+initialState = State (C 0 1) R initialBoxes
+
 pictureOfBoxes :: List Coord -> Picture
 pictureOfBoxes cs = combine (mapList (\c -> atCoord c (drawTile Box)) cs)
 
 drawState :: State -> Picture
-drawState (State c d l) = pictureOfMaze
+drawState (State c d l) = pictureOfBoxes l & (atCoord c $ player d) & pictureOfMaze
 
 ----------------------- COMPLETE INTERACTION ----------------------------------
-
 sokoban :: Interaction State
 sokoban = Interaction initialState (\_ c -> c) handleEvent drawState
 
 ----------------------- GENERAL INTERACTION TYPE ----------------------------------
-
 data Interaction world = Interaction
         world
         (Double -> world -> world)
         (Event -> world -> world)
         (world -> Picture)
 
-
 runInteraction :: Interaction s -> IO ()
 runInteraction (Interaction state0 step handle draw)
   = interactionOf state0 step handle draw
 
 --------------------------- RESETABLE INTERACTIONS ----------------------------------
-
 resetable :: Interaction s -> Interaction s
 resetable (Interaction state0 step handle draw)
   = Interaction state0 step handle' draw
@@ -189,7 +181,6 @@ resetable (Interaction state0 step handle draw)
         handle' e s = handle e s
 
 ------------------------------------ START SCREEN ----------------------------------
-
 startScreen :: Picture
 startScreen = scaled 3 3 (text "Sokoban!")
 
@@ -213,5 +204,5 @@ withStartScreen (Interaction state0 step handle draw)
 
 ------------------------- MAIN FUNCTION -------------------------
 main :: IO ()
---main = runInteraction sokoban
-main = drawingOf pictureOfMaze
+main = runInteraction sokoban
+-- main = drawingOf pictureOfMaze
