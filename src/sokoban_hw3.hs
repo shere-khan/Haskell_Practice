@@ -33,8 +33,7 @@ adjacentCoord D (C x y) = C  x   (y-1)
 moveFromTo :: Coord -> Coord -> Coord -> Coord
 moveFromTo = undefined
 
-
--- The maze
+------------------------------------ THE MAZE ----------------------------------
 
 data Tile = Wall | Ground | Storage | Box | Blank
 
