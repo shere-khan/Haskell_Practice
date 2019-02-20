@@ -3,7 +3,7 @@ import CodeWorld
 
 -- Defines types of picutres in game.
 data Tile = Wall | Ground | Storage | Box | Blank |
-	UpPlayer | DownPlayer | LeftPlayer | RightPlayer deriving (Eq)
+  UpPlayer | DownPlayer | LeftPlayer | RightPlayer deriving (Eq)
 
 data Direction = R | U | L | D | None deriving (Eq)
 
@@ -18,7 +18,7 @@ ground       = colored yellow (solidRectangle 1 1)
 box          = colored brown (solidRectangle 1 1)
 player       = arrow & (colored purple (solidCircle 0.3)) & ground
 upPlayer     = rotated (pi/2) player
-downPlayer   = rotated (pi) player
+leftPlayer   = rotated (pi) player
 downPlayer   = rotated (3*pi/2) player
 rightPlayer  = player
 storage      = solidCircle 0.3 &  ground
@@ -36,8 +36,8 @@ drawTile RightPlayer = rightPlayer
 
 arrow :: Picture
 arrow = translated (0.5) 0 $ rotated (pi/2) $ (piece1 & piece2)
-          where piece1 = rotated (pi/10) $ path [(0,0),(0,1)]
-                piece2 = rotated (-pi/10) $ path [(0,0),(0,1)]
+          where piece1 = rotated (pi/10) $ polyline [(0,0),(0,1)]
+                piece2 = rotated (-pi/10) $ polyline [(0,0),(0,1)]
 
 pictureOfMaze :: Picture
 pictureOfMaze = draw21times (\r -> draw21times (\c -> drawTileAt (O None (C r c))))
@@ -74,11 +74,11 @@ drawState o = (drawPlayer o) & pictureOfMaze
   
 drawPlayer :: Orientation -> Picture
 drawPlayer (O d (C x y))
-	| d == U = atCoord (C x y) $ drawTile UpPlayer
-	| d == L = atCoord (C x y) $ drawTile LeftPlayer
-	| d == D = atCoord (C x y) $ drawTile DownPlayer
-	| d == R = atCoord (C x y) $ drawTile RightPlayer
-	| otherwise = atCoord (C x y) $ drawTile UpPlayer
+  | d == U = atCoord (C x y) $ drawTile UpPlayer
+  | d == L = atCoord (C x y) $ drawTile LeftPlayer
+  | d == D = atCoord (C x y) $ drawTile DownPlayer
+  | d == R = atCoord (C x y) $ drawTile RightPlayer
+  | otherwise = atCoord (C x y) $ drawTile UpPlayer
 
 
 maze :: Orientation -> Tile 
@@ -90,12 +90,6 @@ maze (O d (C x y))
   | x >= -2 && y == 0        = Box
   | otherwise                 = Ground
 
-initialCoord :: Orientation
-initialCoord = O R (C 0 1)
-
-exercise1 :: IO()
-exercise1 = interactionOf initialCoord handleTime handleEvent drawState
-
 ------------------ EVENT HANDLING ---------------------------------------
 handleEvent :: Event -> Orientation -> Orientation
 handleEvent (KeyPress key) (O d c) 
@@ -103,12 +97,57 @@ handleEvent (KeyPress key) (O d c)
     | key == "Up"     = nextCoord (O U c)
     | key == "Left"   = nextCoord (O L c)
     | key == "Down"   = nextCoord (O D c)
+    | key == "Escape" = nextCoord (O D c)
     | otherwise       = (O d c)
 handleEvent _ (O d c)       = (O d c)
 
 handleTime :: Double -> Orientation -> Orientation
 handleTime _ o = o
 
+initialCoord :: Orientation
+initialCoord = O R (C 0 1)
+
+startScreen :: Picture
+startScreen = scaled 3 3 (text "Sokoban!")
+
+data Interaction world = Interaction
+        world
+	(Double -> world -> world)
+	(Event -> world -> world)
+	(world -> Picture)
+
+resetable :: Interaction s -> Interaction s
+resetable (Interaction state0 step handle draw)
+  = Interaction state0 step handle' draw
+  where handle' (KeyPress key) _ | key == "Esc" = state0
+        handle' e s = handle e s
+
+withStartScreen :: Interaction s -> Interaction (SSState s)
+withStartScreen (Interaction state0 step handle draw)
+  = Interaction state0' step' handle' draw'
+  where
+    state0' = StartScreen
+
+    step' _ StartScreen = StartScreen
+    step' t (Running s) = Running (step t s)
+
+    handle' (KeyPress key) StartScreen
+         | key == " "                  = Running state0
+    handle' _              StartScreen = StartScreen
+    handle' e              (Running s) = Running (handle e s)
+
+    draw' StartScreen = startScreen
+    draw' (Running s) = draw s
+
+data SSState world = StartScreen | Running world
+
+runInteraction :: Interaction s -> IO ()
+runInteraction (Interaction state0 step handle draw)
+  = interactionOf state0 step handle draw
+
+exercise1 :: Interaction State
+exercise1 =  Interaction initialState (\_ c -> c) handleEvent2 drawState2
+
 ------------------ MAIN ---------------------------------------
 main :: IO ()
-main = exercise1
+main = runInteraction . resetable . withStartScreen exercise1
