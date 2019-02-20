@@ -18,9 +18,6 @@ data Coord = C Integer Integer deriving (Show)
 
 data Direction = R | U | L | D
 
-eqCoord :: Coord -> Coord -> Bool
-eqCoord = undefined
-
 adjacentCoord :: Direction -> Coord -> Coord
 adjacentCoord R (C x y) = C (x+1) y
 adjacentCoord U (C x y) = C  x   (y+1)
