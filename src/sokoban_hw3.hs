@@ -24,9 +24,6 @@ adjacentCoord U (C x y) = C  x   (y+1)
 adjacentCoord L (C x y) = C (x-1) y
 adjacentCoord D (C x y) = C  x   (y-1)
 
-moveFromTo :: Coord -> Coord -> Coord -> Coord
-moveFromTo = undefined
-
 ------------------------------------ THE MAZE ----------------------------------
 data Tile = Wall | Ground | Storage | Box | Blank
 
@@ -48,14 +45,15 @@ maze (C x y)
   | otherwise                = Ground
 
 mazeWithBoxes :: List Coord -> Coord -> Tile
-mazeWithBoxes l (C x y) = case containsCoord l (C x y) of
-                            True  -> Box
-                            False -> noBoxMaze (C x y)
-  where containsCoord :: List Coord -> Coord -> Bool
-        containsCoord Empty _ = False 
-        containsCoord (Entry (C z w) k) (C x y)
-          | z == x && w == y = True
-          | otherwise        = False || containsCoord k (C x y)
+mazeWithBoxes l (C x y)
+  | containsCoord l (C x y) = Box
+  | otherwise               = noBoxMaze (C x y)
+
+containsCoord :: List Coord -> Coord -> Bool
+containsCoord Empty _ = False 
+containsCoord (Entry (C z w) k) (C x y)
+  | z == x && w == y = True
+  | otherwise        = False || containsCoord k (C x y)
 
 data State = State Coord Direction (List Coord)
 
@@ -80,13 +78,50 @@ appendList (Entry a k) (Entry b l) = (Entry a (Entry b (appendList k l)))
 
 ---------------------------------- EVENT HANDLING ----------------------------------
 handleEvent :: Event -> State -> State
-handleEvent _ s = s -- FIXME!
+handleEvent (KeyPress key) (State c d l)
+    | key == "Right" = calcMove (State c R l)
+    | key == "Left"  = calcMove (State c L l)
+    | key == "Up"    = calcMove (State c U l)
+    | key == "Down"  = calcMove (State c D l)
+handleEvent _ s = s
+
+calcMove :: State -> State
+calcMove (State c d l) = case mazeWithBoxes l to of
+                           Box     -> calcBoxMove (State c d l)
+                           Ground  -> (State to d l)
+                           Storage -> (State to d l)
+                           Wall    -> (State c d l)
+  where to = adjacentCoord d c
+
+calcBoxMove :: State -> State
+calcBoxMove (State c d l)
+      | canBoxMove (State from d l) = (State from d (moveBox l from to))
+      | otherwise                   = (State c    d l)
+    where from = adjacentCoord d c
+          to   = adjacentCoord d from
+
+canBoxMove :: State -> Bool
+canBoxMove (State from d l) = case mazeWithBoxes l to of
+               Box     -> False
+               Ground  -> True
+               Storage -> True
+               Wall    -> False
+  where to = adjacentCoord d from
+
+moveBox :: List Coord -> Coord -> Coord -> List Coord
+moveBox Empty _ _ = Empty
+moveBox (Entry a l) from to
+  | eqCoord a from = (Entry to l)
+  | otherwise      = (Entry a (moveBox l from to))
+
+eqCoord :: Coord -> Coord -> Bool
+eqCoord (C x y) (C z w) = if x == z && y == w then True else False
 
 ------------------------------------ DRAWING ----------------------------------
 wall, ground, storage, box :: Picture
 wall =    colored (grey 0.4) (solidRectangle 1 1)
 ground =  colored yellow     (solidRectangle 1 1)
-storage = colored white (solidCircle 0.3) & ground
+storage = colored white      (solidCircle 0.3) & ground
 box =     colored brown      (solidRectangle 1 1)
 
 drawTile :: Tile -> Picture
@@ -111,7 +146,6 @@ drawTileAt c = atCoord c (drawTile (noBoxMaze c))
 
 drawTileAt2 :: Coord -> Picture
 drawTileAt2 c = atCoord c (drawTile (mazeWithBoxes initialBoxes c))
-
 
 atCoord :: Coord -> Picture -> Picture
 atCoord (C x y) pic = translated (fromIntegral x) (fromIntegral y) pic
