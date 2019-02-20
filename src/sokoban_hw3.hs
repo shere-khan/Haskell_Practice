@@ -4,7 +4,7 @@ import CodeWorld
 
 -- Lists
 
-data List a = Empty | Entry a (List a) deriving (Show)
+data List a = Empty | Entry a (List a)
     
 mapList :: (a -> b) -> List a -> List b
 mapList _ Empty = Empty
@@ -16,7 +16,8 @@ combine (Entry p ps) = p & combine ps
 
 -- Coordinates
 
-data Coord = C Integer Integer | None deriving Show
+
+data Coord = C Integer Integer
 
 data Direction = R | U | L | D
 
@@ -32,9 +33,18 @@ adjacentCoord D (C x y) = C  x   (y-1)
 moveFromTo :: Coord -> Coord -> Coord -> Coord
 moveFromTo = undefined
 
+
 -- The maze
 
 data Tile = Wall | Ground | Storage | Box | Blank
+
+noBoxMaze :: Coord -> Tile
+noBoxMaze (C x y)
+  | abs x > 4  || abs y > 4  = Blank
+  | abs x == 4 || abs y == 4 = Wall
+  | x ==  2 && y <= 0        = Wall
+  | x ==  3 && y <= 0        = Storage
+  | otherwise                = Ground
        
 maze :: Coord -> Tile 
 maze (C x y)
@@ -45,33 +55,54 @@ maze (C x y)
   | x >= -2 && y == 0        = Box
   | otherwise                = Ground
 
-noBoxMaze :: Coord -> Tile
-noBoxMaze = undefined            
-
 mazeWithBoxes :: List Coord -> Coord -> Tile
-mazeWithBoxes = undefined
-
--- The state
+mazeWithBoxes l (C x y) = case containsCoord l (C x y) of
+                            True  -> Box
+                            False -> noBoxMaze (C x y)
+  where containsCoord :: List Coord -> Coord -> Bool
+        containsCoord Empty _ = False 
+        containsCoord (Entry (C z w) k) (C x y)
+          | z == x && w == y = True
+          | otherwise        = False || containsCoord k (C x y)
 
 data State = State Coord Direction (List Coord)
 
+-- Get coordinates of boxes
+drawCol :: Integer -> Integer -> List Coord
+drawCol _ 10 = Empty
+drawCol 10 _ = Empty
+drawCol x y = case maze (C x y) of
+                Box -> (Entry (C x y) next)
+                t   -> next 
+  where next = drawCol x (y+1)
+
+drawRow :: Integer -> Integer -> List Coord
+drawRow _ 10 = Empty
+drawRow 10 _ = Empty
+drawRow x y  = appendList (drawCol x y) (drawRow (x + 1) y)
+
+appendList :: List Coord -> List Coord -> List Coord
+appendList k Empty = k
+appendList Empty k = k
+appendList (Entry a k) (Entry b l) = (Entry a (Entry b (appendList k l)))
+
 initialBoxes :: List Coord
-initialBoxes = undefined
+initialBoxes = drawRow (-10) (-10)
 
 initialState :: State
-initialState = State (C 0 1) R (Entry (C 3 2) Empty)
+initialState = State (C 0 1) R (Entry (C 3 3) Empty)
 
--- Event handling
+---------------------------------- EVENT HANDLING ----------------------------------
 
 handleEvent :: Event -> State -> State
 handleEvent _ s = s -- FIXME!
 
--- Drawing
+------------------------------------ DRAWING ----------------------------------
 
 wall, ground, storage, box :: Picture
 wall =    colored (grey 0.4) (solidRectangle 1 1)
 ground =  colored yellow     (solidRectangle 1 1)
-storage = colored white      (solidCircle 0.3) & ground
+storage = colored white (solidCircle 0.3) & ground
 box =     colored brown      (solidRectangle 1 1)
 
 drawTile :: Tile -> Picture
@@ -81,8 +112,8 @@ drawTile Storage = storage
 drawTile Box     = box
 drawTile Blank   = blank
 
--- pictureOfMaze :: Picture
--- pictureOfMaze = draw21times (\r -> draw21times (\c -> drawTileAt (C r c)))
+pictureOfMaze :: Picture
+pictureOfMaze = draw21times (\r -> draw21times (\c -> drawTileAt (C r c)))
 
 draw21times :: (Integer -> Picture) -> Picture
 draw21times something = go (-10)
@@ -92,7 +123,7 @@ draw21times something = go (-10)
     go n  = something n & go (n+1)
 
 drawTileAt :: Coord -> Picture
-drawTileAt c = atCoord c (drawTile (maze c))
+drawTileAt c = atCoord c (drawTile (mazeWithBoxes initialBoxes c))
 
 
 atCoord :: Coord -> Picture -> Picture
@@ -130,7 +161,7 @@ pictureOfBoxes :: List Coord -> Picture
 pictureOfBoxes cs = combine (mapList (\c -> atCoord c (drawTile Box)) cs)
 
 drawState :: State -> Picture
-drawState (State c d bc) = pictureOfMaze
+drawState (State c d l) = pictureOfMaze
 
 -- The complete interaction
 
@@ -181,29 +212,7 @@ withStartScreen (Interaction state0 step handle draw)
     draw' StartScreen = startScreen
     draw' (Running s) = draw s
 
--- Get coordinates of boxes
-drawCol :: Integer -> Integer -> List Coord
-drawCol _ 10 = Empty
-drawCol 10 _ = Empty
-drawCol x y = case maze (C x y) of
-                Box -> (Entry (C x y) next)
-                t   -> next 
-  where next = drawCol x (y+1)
-
-drawRow :: Integer -> Integer -> List Coord
-drawRow _ 10 = Empty
-drawRow 10 _ = Empty
-drawRow x y  = appendList (drawCol x y) (drawRow (x + 1) y)
-
-appendList :: List Coord -> List Coord -> List Coord
-appendList k Empty = k
-appendList Empty k = k
-appendList (Entry a k) (Entry b l) = (Entry a (Entry b (appendList k l)))
-
-pictureOfMaze :: Picture
-pictureOfMaze = blank
-
 ------------------------- MAIN FUNCTION -------------------------
 main :: IO ()
--- main = runInteraction sokoban
-main = drawingOf $ solidCircle 3
+--main = runInteraction sokoban
+main = drawingOf pictureOfMaze
