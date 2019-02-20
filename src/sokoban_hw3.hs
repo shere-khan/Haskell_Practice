@@ -163,12 +163,12 @@ pictureOfBoxes cs = combine (mapList (\c -> atCoord c (drawTile Box)) cs)
 drawState :: State -> Picture
 drawState (State c d l) = pictureOfMaze
 
--- The complete interaction
+----------------------- COMPLETE INTERACTION ----------------------------------
 
 sokoban :: Interaction State
 sokoban = Interaction initialState (\_ c -> c) handleEvent drawState
 
--- The general interaction type
+----------------------- GENERAL INTERACTION TYPE ----------------------------------
 
 data Interaction world = Interaction
         world
@@ -181,7 +181,7 @@ runInteraction :: Interaction s -> IO ()
 runInteraction (Interaction state0 step handle draw)
   = interactionOf state0 step handle draw
 
--- Resetable interactions
+--------------------------- RESETABLE INTERACTIONS ----------------------------------
 
 resetable :: Interaction s -> Interaction s
 resetable (Interaction state0 step handle draw)
@@ -189,7 +189,7 @@ resetable (Interaction state0 step handle draw)
   where handle' (KeyPress key) _ | key == "Esc" = state0
         handle' e s = handle e s
 
--- Start screen
+------------------------------------ START SCREEN ----------------------------------
 
 startScreen :: Picture
 startScreen = scaled 3 3 (text "Sokoban!")
