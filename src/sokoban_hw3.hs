@@ -25,7 +25,7 @@ adjacentCoord L (C x y) = C (x-1) y
 adjacentCoord D (C x y) = C  x   (y-1)
 
 ------------------------------------ THE MAZE ----------------------------------
-data Tile = Wall | Ground | Storage | Box | Blank
+data Tile = Wall | Ground | Storage | Box | Blank deriving Eq
 
 noBoxMaze :: Coord -> Tile
 noBoxMaze (C x y)
@@ -187,7 +187,10 @@ pictureOfBoxes :: List Coord -> Picture
 pictureOfBoxes cs = combine (mapList (\c -> atCoord c (drawTile Box)) cs)
 
 drawState :: State -> Picture
-drawState (State c d l) = pictureOfBoxes l & (atCoord c $ player d) & pictureOfMaze
+drawState (State c d l)
+    | isWon (State c d l)   = (colored purple (solidCircle 4)) & pic
+    | otherwise = pic
+  where pic = pictureOfBoxes l & (atCoord c $ player d) & pictureOfMaze
 
 ----------------------- COMPLETE INTERACTION ----------------------------------
 sokoban :: Interaction State
@@ -233,7 +236,21 @@ withStartScreen (Interaction state0 step handle draw)
     draw' StartScreen = startScreen
     draw' (Running s) = draw s
 
+------------------------- WINNING GAME -------------------------
+isWon :: State -> Bool
+isWon (State c d (Entry a l)) = allList $ mapList isOnStorage l
+
+isOnStorage :: Coord -> Bool
+isOnStorage c
+  | noBoxMaze c == Storage = True
+  | otherwise              = False
+
+allList :: List Bool -> Bool
+allList Empty = True
+allList (Entry a l) = a && allList l
+
 ------------------------- MAIN FUNCTION -------------------------
 main :: IO ()
-main = runInteraction sokoban
+main = runInteraction $ resetable $ withStartScreen sokoban
+--main = runInteraction sokoban
 -- main = drawingOf pictureOfMaze
